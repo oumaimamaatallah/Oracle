@@ -7,8 +7,8 @@ Vous trouverez dans ce [lien](https://docs.google.com/presentation/d/1f5uyqowZ7u
 ```
 DELETE FROM EMP WHERE ENAME IN ('Hichem','Mohamed');
 
-Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,SAL,COMM,DEPTNO) values ('7839','Mohamed','PLEASE',null,to_date('17/11/81','DD/MM/RR'),'2000',null,'10');
-Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,SAL,COMM,DEPTNO) values ('7698','Hichem','CRAFTSMAN','7839',to_date('01/05/81','DD/MM/RR'),'2800',null,'10');
+Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,SAL,COMM,DEPTNO) values ('1','Mohamed','PLEASE',null,to_date('17/11/81','DD/MM/RR'),'2000',null,'10');
+Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,SAL,COMM,DEPTNO) values ('2','Hichem','CRAFTSMAN',null,to_date('01/05/81','DD/MM/RR'),'2800',null,'10');
 ```
 
 ## Introduction
@@ -83,14 +83,14 @@ Biensûr, lorsqu'on parle de gestion de conccurence entre plusieurs transactions
 | Timing | Session N° 1 (User1)   | Session N° 2 (User2) |Résultat | 
 | :----: | :----: |:----:|:----:|
 | t0 | ``` SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');``` |||
-| t1 | ``` UPDATE EMP SET SAL = 4000 WHERE ENAME ='Hichem'; ``` |------|------|
-| t2 | ------ |```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Mohamed';```|------|
-| t3 | ```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Mohamed';```|------|
+| t1 | ``` UPDATE EMP SET SAL = 4000 WHERE ENAME ='Hichem'; ``` |------|update done|
+| t2 | ------ |```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Mohamed';```|update stuck cause of no commit from user 1|
+| t3 | ```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Mohamed';```|update done|
 | t4 | ------ |```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Hichem';```|La session 1 va detecter l'interblocage |
 | t5 | ```Commit;``` |------| Session 2: --> 1 row updated.|
-| t6  |```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Mohamed';```| ------|------|
-| t7 |  ------ |```Commit;```| --------|
-| t8 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
+| t6  |```UPDATE EMP SET SAL = SAL + 1000 WHERE ENAME ='Mohamed';```| ------|update done to user 1 and 2 in teh same time after the commit|
+| t7 | ```Commit;```| ------ | --------|
+| t8 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|the updates from user 1 and 2 are shown in the select Query|
 
 ## Concurrence : Niveaux d'isolation des transactions
 
@@ -117,17 +117,17 @@ Autrement dit, le développeur déclare qu’une lecture va être suivie d’une
 | Timing | Session N° 1  | Session N° 2 |Résultat | 
 | :----: | :----: |:----:|:----:|
 | t0| ``` SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');``` |||
-| t1 | ``` UPDATE EMP SET SAL = 4000 WHERE ENAME ='Hichem'; ``` |------|------|
+| t1 | ``` UPDATE EMP SET SAL = 4000 WHERE ENAME ='Hichem'; ``` |------|update done|
 | t2 | ------ |```SET TRANSACTION ISOLATION LEVEL READ COMMITTED;```|------|
-| t3 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');```|------|
-| t4 | ------ |```UPDATE EMP SET SAL = 3800 WHERE ENAME ='Mohamed';```|------|
-| t5 | ```Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,COMM,DEPTNO) values ('9999','Maaoui','Magician',null,to_date('17/02/2021','DD/MM/RR'),null,'10');``` |------|------|
-| t6 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
-| t7 | ------ |```UPDATE EMP SET SAL = 5000 WHERE ENAME ='Hichem';```|------|
+| t3 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');```|the first update passes witout the commit|
+| t4 | ------ |```UPDATE EMP SET SAL = 3800 WHERE ENAME ='Mohamed';```|the 2 user update can't pass without commit  of user 1  |
+| t5 | ```Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,COMM,DEPTNO) values ('9999','Maaoui','Magician',null,to_date('17/02/2021','DD/MM/RR'),null,'10');``` |------|insert complete |
+| t6 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|here you can see we founs the insert values means that the commited goes only for read level|
+| t7 | ------ |```UPDATE EMP SET SAL = 5000 WHERE ENAME ='Hichem';```|update blocked by user one need of commit|
 | t8 | ```Commit;``` |------|------|
-| t9 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
+| t9 | ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|update passes from the user 2 cause user 1 just commited wqe can see that from the select results |
 | t10| ------ |```COMMIT;```|------|
-| t11| ```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|------|
+| t11| ```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|updates done for 2 users |
 
 
 
@@ -137,29 +137,29 @@ Autrement dit, le développeur déclare qu’une lecture va être suivie d’une
 | Timing | Session N° 1  | Session N° 2 |Résultat | 
 | :----: | :----: |:----:|:----:|
 | t0| ``` SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');``` |||
-| t1| ``` UPDATE EMP SET SAL = 4000 WHERE ENAME ='Hichem'; ``` |------|------|
-| t2| ------ |```SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;```|------|
-| t3| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');```|------|
-| t4| ------ |```UPDATE EMP SET SAL = 3800 WHERE ENAME ='Mohamed';```|------|
+| t1| ``` UPDATE EMP SET SAL = 4000 WHERE ENAME ='Hichem'; ``` |------|update done|
+| t2| ------ |```SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;```|now user 2 is not with the server time |
+| t3| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem');```|user 1 update is on lock didn't get the values |
+| t4| ------ |```UPDATE EMP SET SAL = 3800 WHERE ENAME ='Mohamed';```|can't update a table locked by user 1 before the isolation |
 | t5| ```Insert into EMP (EMPNO,ENAME,JOB,MGR,HIREDATE,COMM,DEPTNO) values ('9999','Maaoui','Magician',null,to_date('17/02/2021','DD/MM/RR'),null,'10');``` |------|------|
-| t6| ```COMMIT;```|------ |------|
-| t7|```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```| ------ |------|
-| t8| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
-| t9| ```Commit;``` |------|------|
+| t6| ```COMMIT;```|------ |even after the commit can't let the lock donw cause he took it in a dif server time|
+| t7|```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```| ------ |select  have the user one update values |
+| t8| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|select dosn't have user 1 values|
+| t9| ```Commit;``` |------|even after the commit still the same for user 2|
 | t10|```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```| ------ |------|
-| t11| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
+| t11| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|the select stil lwith old values|
 | t12| ------ | ```COMMIT;```|------|
-| t13| ``` UPDATE EMP SET SAL = 5000 WHERE ENAME ='Maaoui'; ``` |------|------|
+| t13| ``` UPDATE EMP SET SAL = 5000 WHERE ENAME ='Maaoui'; ``` |------|update done |
 | t14| ------ |```SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;```|------|
 | t15| ------ |```UPDATE EMP SET SAL = 5200 WHERE ENAME ='Maaoui';```|------|
 | t16| ```COMMIT;``` |------|------|
-| t17| ------ |```ROLLBACK;```|------|
+| t17| ------ |```ROLLBACK;```|rollback to the select removing the isolation|
 | t18| ------ |```SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;```|------|
-| t19| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
-| t20| ``` UPDATE EMP SET SAL = 5200 WHERE ENAME ='Maaoui'; ``` |------|------|
+| t19| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|now user 2 have all data updated from user 1 and his update|
+| t20| ``` UPDATE EMP SET SAL = 5200 WHERE ENAME ='Maaoui'; ``` |------|update done|
 | t21| ```COMMIT;``` |------|------|
 | t22| ------ | ```COMMIT;```|------|
-| t23| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|------|
+| t23| ------ |```SELECT ENAME, SAL FROM EMP WHERE ENAME IN ('Mohamed','Hichem', 'Maaoui');```|selcets ever date edited by the 2 users but only the last update of user 1 is not visible |
 
 
 
